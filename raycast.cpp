@@ -8,9 +8,9 @@ const int height = 256;
 
 const int max_triangles = 65536;
 
-float triangle_vertices[3][3][max_triangles];
-float triangle_planes[4][max_triangles];
-float triangle_edges[4][3][max_triangles];
+float triangle_vertices[max_triangles][3][3];
+float triangle_planes[max_triangles][4];
+float triangle_edges[max_triangles][3][4];
 
 int triangle_count = 0;
 
@@ -134,7 +134,7 @@ int main()
     float camera[3];
     camera[0] = center[0];
     camera[1] = center[1];
-    camera[2] = max[2] + max_dimension / .7;
+    camera[2] = max[2] + max_dimension / 2 / .9;
     fprintf(stderr, "camera is at %f %f %f\n", camera[0], camera[1], camera[2]);
 
     // Rather than raytrace from the camera, move the model to simplify
@@ -183,7 +183,7 @@ int main()
 
             // find the closest triangle
             int triangle = -1;
-            float t = 10000000;
+            float t = background;
 
             for(int k = 0; k < triangle_count; k++) {
                 float t2 = intersect_triangle(k, ray);
@@ -198,8 +198,7 @@ int main()
             if(triangle == -1)
                 color = 0;
             else {
-                color = fabs(triangle_planes[triangle][1]);
-                color = 1;
+                color = fabs(triangle_planes[triangle][2]);
             }
 
             printf("%d ", (int)(color * 255));

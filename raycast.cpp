@@ -1,7 +1,20 @@
 #include <algorithm>
 #include <cmath>
 
-const float background = 1000000;
+// Okay, it's ugly, I get it.
+//
+// I didn't use classes or a vector library.  I even use loops to
+// 3 everywhere.  My intent was to try to build a minimal triangle
+// raycaster that I could convert simply to BASIC or FORTH or other
+// simple languages without having to downconvert C++ concepts.
+//
+// I'm already thinking function calls is problematic, as well as
+// the arrays with 3 dimensions.  I might have to inline the functions
+// and use goto instead of early returns.
+//
+// So it's probably still not ugly enough.
+
+const float infinity = 1000000;
 
 const int width = 256;
 const int height = 256;
@@ -14,7 +27,7 @@ float triangle_edges[max_triangles][3][4];
 
 int triangle_count = 0;
 
-inline void prepare_triangle(int k)
+void prepare_triangle(int k)
 {
     float e[3][3];
     for(int i = 0; i < 3; i++)
@@ -56,12 +69,12 @@ float intersect_triangle(int k, float ray[3])
         ray[2] * triangle_planes[k][2];
 
     if(factor == 0.0)
-       return background;
+       return infinity;
 
     float distance = triangle_planes[k][3] / factor;
 
     if(distance < 0)
-        return background;
+        return infinity;
 
     float point[3];
     for(int i = 0; i < 3; i++)
@@ -74,7 +87,7 @@ float intersect_triangle(int k, float ray[3])
             triangle_edges[k][i][2] * point[2];
 
         if(edge_dot < triangle_edges[k][i][3])
-	   return background;
+	   return infinity;
     }
 
     return distance;
@@ -94,11 +107,6 @@ int main()
             for(int i = 0; i < 3; i++) {
                 triangle_vertices[triangle_count][j][i] = v[j][i];
             }
-
-        fprintf(stderr, "%f %f %f %f %f %f %f %f %f\n",
-            triangle_vertices[triangle_count][0][0], triangle_vertices[triangle_count][0][1], triangle_vertices[triangle_count][0][2],
-            triangle_vertices[triangle_count][1][0], triangle_vertices[triangle_count][1][1], triangle_vertices[triangle_count][1][2],
-            triangle_vertices[triangle_count][2][0], triangle_vertices[triangle_count][2][1], triangle_vertices[triangle_count][2][2]);
 
         triangle_count++;
     }
@@ -135,7 +143,6 @@ int main()
     camera[0] = center[0];
     camera[1] = center[1];
     camera[2] = max[2] + max_dimension / 2 / .9;
-    fprintf(stderr, "camera is at %f %f %f\n", camera[0], camera[1], camera[2]);
 
     // Rather than raytrace from the camera, move the model to simplify
     // the math
@@ -147,18 +154,6 @@ int main()
 
     for(int k = 0; k < triangle_count; k++) {
         prepare_triangle(k);
-        fprintf(stderr, "%f %f %f %f %f %f %f %f %f\n",
-            triangle_vertices[k][0][0], triangle_vertices[k][0][1], triangle_vertices[k][0][2],
-            triangle_vertices[k][1][0], triangle_vertices[k][1][1], triangle_vertices[k][1][2],
-            triangle_vertices[k][2][0], triangle_vertices[k][2][1], triangle_vertices[k][2][2]);
-        fprintf(stderr, "    plane %f %f %f %f\n",
-            triangle_planes[k][0], triangle_planes[k][1], triangle_planes[k][2], triangle_planes[k][3]);
-        fprintf(stderr, "    edge %f %f %f %f\n",
-            triangle_edges[k][0][0], triangle_edges[k][0][1], triangle_edges[k][0][2], triangle_edges[k][0][3]);
-        fprintf(stderr, "    edge %f %f %f %f\n",
-            triangle_edges[k][1][0], triangle_edges[k][1][1], triangle_edges[k][1][2], triangle_edges[k][1][3]);
-        fprintf(stderr, "    edge %f %f %f %f\n",
-            triangle_edges[k][2][0], triangle_edges[k][2][1], triangle_edges[k][2][2], triangle_edges[k][2][3]);
     }
 
     printf("P2 %d %d 255\n", width, height);
@@ -183,7 +178,7 @@ int main()
 
             // find the closest triangle
             int triangle = -1;
-            float t = background;
+            float t = infinity;
 
             for(int k = 0; k < triangle_count; k++) {
                 float t2 = intersect_triangle(k, ray);

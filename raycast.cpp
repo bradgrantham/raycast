@@ -3,8 +3,9 @@
 
 // Okay, it's ugly, I get it.
 //
-// I didn't use classes or a vector library.  I even use loops to
-// 3 everywhere.  My intent was to try to build a minimal triangle
+// I didn't use classes or a vector library.  I use loops to
+// 3 everywhere for vector operations, and I even write out dot
+// products.  My intent was to try to build a minimal triangle
 // raycaster that I could convert simply to BASIC or FORTH or other
 // simple languages without having to downconvert C++ concepts.
 //
@@ -24,6 +25,7 @@ const int max_triangles = 400000;
 float triangle_vertices[max_triangles][3][3];
 float triangle_planes[max_triangles][4];
 float triangle_edges[max_triangles][3][4];
+float triangle_proj[max_triangles][4]; // xmin, xmax, ymin, ymax
 
 int triangle_count = 0;
 
@@ -66,6 +68,17 @@ void prepare_triangle(int k)
             triangle_edges[k][j][0] * triangle_vertices[k][j][0] +
             triangle_edges[k][j][1] * triangle_vertices[k][j][1] +
             triangle_edges[k][j][2] * triangle_vertices[k][j][2];
+    }
+
+    triangle_proj[k][0] = 2;
+    triangle_proj[k][1] = -2;
+    triangle_proj[k][2] = 2;
+    triangle_proj[k][3] = -2;
+    for(int j = 0; j < 3; j++) {
+        triangle_proj[k][0] = std::min(triangle_proj[k][0], triangle_vertices[k][j][0] / -triangle_vertices[k][j][2]);
+        triangle_proj[k][1] = std::max(triangle_proj[k][1], triangle_vertices[k][j][0] / -triangle_vertices[k][j][2]);
+        triangle_proj[k][2] = std::min(triangle_proj[k][2], triangle_vertices[k][j][1] / -triangle_vertices[k][j][2]);
+        triangle_proj[k][3] = std::max(triangle_proj[k][3], triangle_vertices[k][j][1] / -triangle_vertices[k][j][2]);
     }
 }
 
@@ -196,16 +209,19 @@ int main()
             ray[1] = - (-.5 + (py + .5) * pdy);
             ray[2] = -1;
 
-            float d = sqrt(ray[0] * ray[0] + ray[1] * ray[1] + ray[2] * ray[2]);
-
-            for(int i = 0; i < 3; i++)
-                ray[i] /= d;
-
             // find the closest triangle
             int triangle = -1;
             float t = infinity;
 
             for(int k = 0; k < triangle_count; k++) {
+                if(ray[0] < triangle_proj[k][0])
+                    continue;
+                if(ray[0] > triangle_proj[k][1])
+                    continue;
+                if(ray[1] < triangle_proj[k][2])
+                    continue;
+                if(ray[1] > triangle_proj[k][3])
+                    continue;
                 float t2 = intersect_triangle(k, ray);
                 if(t2 < t) {
                     t = t2;
@@ -216,15 +232,18 @@ int main()
             // shade the intersection
             float color;
 
-            if(triangle == -1)
+            if(triangle == -1) {
+
                 color = .2;
-            else {
-                float reflection[3];
 
-                reflect(ray, triangle_planes[triangle], reflection);
+            } else {
 
-                float lighting =
-                    light[0] * reflection[0] + light[1] * reflection[1] + light[2] * reflection[2];
+                float facing = ray[0] * triangle_planes[triangle][0] + ray[1] * triangle_planes[triangle][1] + ray[2] * triangle_planes[triangle][2];
+
+                float lighting = light[0] * triangle_planes[triangle][0] + light[1] * triangle_planes[triangle][1] + light[2] * triangle_planes[triangle][2];
+
+                if(facing > 0)
+                    lighting = -lighting;
 
                 color = std::max(0.1f, lighting);
             }

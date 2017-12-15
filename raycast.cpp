@@ -9,7 +9,7 @@
 // raycaster that I could convert simply to BASIC or FORTH or other
 // simple languages without having to downconvert C++ concepts.
 //
-// I'm already thinking function calls is problematic, as well as
+// I'm already thinking function calls are problematic, as well as
 // the arrays with 3 dimensions.  I might have to inline the functions
 // and use goto instead of early returns.
 //

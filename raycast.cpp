@@ -31,7 +31,7 @@ int tc = 0;
 
 float L[3] = {.577, .577, .577};
 
-void prepare_triangle(int k)
+void prepare(int k)
 {
     // Get edge vectors
     float e[3][3];
@@ -82,14 +82,14 @@ void prepare_triangle(int k)
     }
 }
 
-float intersect_triangle(int k, float ray[3])
+float intersect(int k, float r[3])
 {
     int i;
 
-    // find distance from ray origin (0,0,0) to plane in units of plane normal
-    float factor = ray[0] * tp[k][0] + 
-        ray[1] * tp[k][1] + 
-        ray[2] * tp[k][2];
+    // find distance from r origin (0,0,0) to plane in units of plane normal
+    float factor = r[0] * tp[k][0] + 
+        r[1] * tp[k][1] + 
+        r[2] * tp[k][2];
 
     // if coin, fail
     if(factor == 0.0)
@@ -103,32 +103,24 @@ float intersect_triangle(int k, float ray[3])
         return F;
 
     // calculate the point in the plane
-    float point[3];
+    float p[3];
     for(int i = 0; i < 3; i++)
-        point[i] = ray[i] * t;
+        p[i] = r[i] * t;
 
     for(i = 0; i < 3; i++) {
         // calculate the distance from each edge i to the point
-        float edge_dot =
-            te[k][i][0] * point[0] + 
-            te[k][i][1] * point[1] + 
-            te[k][i][2] * point[2];
+        float edge =
+            te[k][i][0] * p[0] + 
+            te[k][i][1] * p[1] + 
+            te[k][i][2] * p[2];
 
         // if the distance is greater than the distance to the opposite vertex, fail
-        if(edge_dot < te[k][i][3])
+        if(edge < te[k][i][3])
 	   return F;
     }
 
     // succeed by returning the distance
     return t;
-}
-
-void reflect(float in[3], float n[3], float refl[3])
-{
-    float projection = in[0] * n[0] + in[1] * n[1] + in[2] * n[2];
-
-    for(int i = 0; i < 3; i++)
-        refl[i] = in[i] - 2.0f * projection * n[i];
 }
 
 int main()
@@ -191,7 +183,7 @@ int main()
     }
 
     for(int k = 0; k < tc; k++) {
-        prepare_triangle(k);
+        prepare(k);
     }
 
     printf("P2 %d %d 255\n", W, H);
@@ -203,51 +195,53 @@ int main()
         for(int px = 0; px < W; px++) {
 
             // Make the ray
-            float ray[3];
+            float r[3];
             
-            ray[0] = -.5 + (px + .5) * pdx;
-            ray[1] = - (-.5 + (py + .5) * pdy);
-            ray[2] = -1;
+            r[0] = -.5 + (px + .5) * pdx;
+            r[1] = - (-.5 + (py + .5) * pdy);
+            r[2] = -1;
 
             // find the closest triangle
-            int triangle = -1;
+            int tri = -1;
             float t = F;
 
             for(int k = 0; k < tc; k++) {
-                if(ray[0] < tb[k][0])
+
+                if(r[0] < tb[k][0])
                     continue;
-                if(ray[0] > tb[k][1])
+                if(r[0] > tb[k][1])
                     continue;
-                if(ray[1] < tb[k][2])
+                if(r[1] < tb[k][2])
                     continue;
-                if(ray[1] > tb[k][3])
+                if(r[1] > tb[k][3])
                     continue;
-                float t2 = intersect_triangle(k, ray);
+
+                float t2 = intersect(k, r);
                 if(t2 < t) {
                     t = t2;
-                    triangle = k;
+                    tri = k;
                 }
             }
 
             // shade the intersection
-            float color;
+            float shade;
 
-            if(triangle == -1) {
+            if(tri == -1) {
 
-                color = .2;
+                shade = .2;
 
             } else {
 
-                float facing = ray[0] * tp[triangle][0] + ray[1] * tp[triangle][1] + ray[2] * tp[triangle][2];
+                float facing = r[0] * tp[tri][0] + r[1] * tp[tri][1] + r[2] * tp[tri][2];
 
-                float Ling = L[0] * tp[triangle][0] + L[1] * tp[triangle][1] + L[2] * tp[triangle][2];
+                float lighting = L[0] * tp[tri][0] + L[1] * tp[tri][1] + L[2] * tp[tri][2];
 
                 if(facing > 0)
-                    Ling = -Ling;
+                    lighting = -lighting;
 
-                color = std::max(0.1f, Ling);
+                shade = std::max(0.1f, lighting);
             }
 
-            printf("%d ", (int)(color * 255));
+            printf("%d ", (int)(shade * 255));
         }
 }

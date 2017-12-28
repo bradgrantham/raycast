@@ -15,70 +15,70 @@
 //
 // So it's probably still not ugly enough.
 
-const float infinity = 1000000;
+const float F = 1000000;
 
-const int width = 256;
-const int height = 256;
+const int W = 256;
+const int H = 256;
 
-const int max_triangles = 400000;
+const int M = 400000;
 
-float triangle_vertices[max_triangles][3][3];
-float triangle_planes[max_triangles][4];
-float triangle_edges[max_triangles][3][4];
-float triangle_proj[max_triangles][4]; // xmin, xmax, ymin, ymax
+float tv[M][3][3]; // vertices
+float tp[M][4]; // planes
+float te[M][3][4]; // edge half-space planes
+float tb[M][4]; // xmin, xmax, ymin, ymax
 
-int triangle_count = 0;
+int tc = 0;
 
-float light[3] = {.577, .577, .577};
+float L[3] = {.577, .577, .577};
 
 void prepare_triangle(int k)
 {
     // Get edge vectors
     float e[3][3];
     for(int i = 0; i < 3; i++)
-        e[0][i] = triangle_vertices[k][1][i] - triangle_vertices[k][0][i];
+        e[0][i] = tv[k][1][i] - tv[k][0][i];
     for(int i = 0; i < 3; i++)
-        e[1][i] = triangle_vertices[k][2][i] - triangle_vertices[k][1][i];
+        e[1][i] = tv[k][2][i] - tv[k][1][i];
     for(int i = 0; i < 3; i++)
-        e[2][i] = triangle_vertices[k][0][i] - triangle_vertices[k][2][i];
+        e[2][i] = tv[k][0][i] - tv[k][2][i];
 
     // Cross product e0 and e1 to get normal
-    triangle_planes[k][0] = e[0][1] * e[1][2] - e[0][2] * e[1][1];
-    triangle_planes[k][1] = e[0][2] * e[1][0] - e[0][0] * e[1][2];
-    triangle_planes[k][2] = e[0][0] * e[1][1] - e[0][1] * e[1][0];
+    tp[k][0] = e[0][1] * e[1][2] - e[0][2] * e[1][1];
+    tp[k][1] = e[0][2] * e[1][0] - e[0][0] * e[1][2];
+    tp[k][2] = e[0][0] * e[1][1] - e[0][1] * e[1][0];
 
     // Normalize normal
-    float d = sqrt(triangle_planes[k][0] * triangle_planes[k][0] + triangle_planes[k][1] * triangle_planes[k][1] + triangle_planes[k][2] * triangle_planes[k][2]);
+    float d = sqrt(tp[k][0] * tp[k][0] + tp[k][1] * tp[k][1] + tp[k][2] * tp[k][2]);
     for(int i = 0; i < 3; i++)
-        triangle_planes[k][i] /= d;
+        tp[k][i] /= d;
 
     // Use dot product of normal and v0 to get fourth plane equation element
-    triangle_planes[k][3] = triangle_planes[k][0] * triangle_vertices[k][0][0] + 
-        triangle_planes[k][1] * triangle_vertices[k][0][1] + 
-        triangle_planes[k][2] * triangle_vertices[k][0][2];
+    tp[k][3] = tp[k][0] * tv[k][0][0] + 
+        tp[k][1] * tv[k][0][1] + 
+        tp[k][2] * tv[k][0][2];
 
     // Get half-spaces representing each edge by making vector
     // perpendicular to edge and dot that with opposite vertex to get
     // plane equation
     for(int j = 0; j < 3; j++) {
-        triangle_edges[k][j][0] = triangle_planes[k][1] * e[j][2] - triangle_planes[k][2] * e[j][1];
-        triangle_edges[k][j][1] = triangle_planes[k][2] * e[j][0] - triangle_planes[k][0] * e[j][2];
-        triangle_edges[k][j][2] = triangle_planes[k][0] * e[j][1] - triangle_planes[k][1] * e[j][0];
-        triangle_edges[k][j][3] =
-            triangle_edges[k][j][0] * triangle_vertices[k][j][0] +
-            triangle_edges[k][j][1] * triangle_vertices[k][j][1] +
-            triangle_edges[k][j][2] * triangle_vertices[k][j][2];
+        te[k][j][0] = tp[k][1] * e[j][2] - tp[k][2] * e[j][1];
+        te[k][j][1] = tp[k][2] * e[j][0] - tp[k][0] * e[j][2];
+        te[k][j][2] = tp[k][0] * e[j][1] - tp[k][1] * e[j][0];
+        te[k][j][3] =
+            te[k][j][0] * tv[k][j][0] +
+            te[k][j][1] * tv[k][j][1] +
+            te[k][j][2] * tv[k][j][2];
     }
 
-    triangle_proj[k][0] = 2;
-    triangle_proj[k][1] = -2;
-    triangle_proj[k][2] = 2;
-    triangle_proj[k][3] = -2;
+    tb[k][0] = 2;
+    tb[k][1] = -2;
+    tb[k][2] = 2;
+    tb[k][3] = -2;
     for(int j = 0; j < 3; j++) {
-        triangle_proj[k][0] = std::min(triangle_proj[k][0], triangle_vertices[k][j][0] / -triangle_vertices[k][j][2]);
-        triangle_proj[k][1] = std::max(triangle_proj[k][1], triangle_vertices[k][j][0] / -triangle_vertices[k][j][2]);
-        triangle_proj[k][2] = std::min(triangle_proj[k][2], triangle_vertices[k][j][1] / -triangle_vertices[k][j][2]);
-        triangle_proj[k][3] = std::max(triangle_proj[k][3], triangle_vertices[k][j][1] / -triangle_vertices[k][j][2]);
+        tb[k][0] = std::min(tb[k][0], tv[k][j][0] / -tv[k][j][2]);
+        tb[k][1] = std::max(tb[k][1], tv[k][j][0] / -tv[k][j][2]);
+        tb[k][2] = std::min(tb[k][2], tv[k][j][1] / -tv[k][j][2]);
+        tb[k][3] = std::max(tb[k][3], tv[k][j][1] / -tv[k][j][2]);
     }
 }
 
@@ -87,48 +87,48 @@ float intersect_triangle(int k, float ray[3])
     int i;
 
     // find distance from ray origin (0,0,0) to plane in units of plane normal
-    float factor = ray[0] * triangle_planes[k][0] + 
-        ray[1] * triangle_planes[k][1] + 
-        ray[2] * triangle_planes[k][2];
+    float factor = ray[0] * tp[k][0] + 
+        ray[1] * tp[k][1] + 
+        ray[2] * tp[k][2];
 
-    // if coincident, fail
+    // if coin, fail
     if(factor == 0.0)
-       return infinity;
+       return F;
 
     // find distance to plane in world units
-    float distance = triangle_planes[k][3] / factor;
+    float t = tp[k][3] / factor;
 
     // if intersection is behind the ray, fail
-    if(distance < 0)
-        return infinity;
+    if(t < 0)
+        return F;
 
     // calculate the point in the plane
     float point[3];
     for(int i = 0; i < 3; i++)
-        point[i] = ray[i] * distance;
+        point[i] = ray[i] * t;
 
     for(i = 0; i < 3; i++) {
         // calculate the distance from each edge i to the point
         float edge_dot =
-            triangle_edges[k][i][0] * point[0] + 
-            triangle_edges[k][i][1] * point[1] + 
-            triangle_edges[k][i][2] * point[2];
+            te[k][i][0] * point[0] + 
+            te[k][i][1] * point[1] + 
+            te[k][i][2] * point[2];
 
         // if the distance is greater than the distance to the opposite vertex, fail
-        if(edge_dot < triangle_edges[k][i][3])
-	   return infinity;
+        if(edge_dot < te[k][i][3])
+	   return F;
     }
 
     // succeed by returning the distance
-    return distance;
+    return t;
 }
 
-void reflect(float incident[3], float n[3], float reflection[3])
+void reflect(float in[3], float n[3], float refl[3])
 {
-    float projection = incident[0] * n[0] + incident[1] * n[1] + incident[2] * n[2];
+    float projection = in[0] * n[0] + in[1] * n[1] + in[2] * n[2];
 
     for(int i = 0; i < 3; i++)
-        reflection[i] = incident[i] - 2.0f * projection * n[i];
+        refl[i] = in[i] - 2.0f * projection * n[i];
 }
 
 int main()
@@ -143,10 +143,10 @@ int main()
 
         for(int j = 0; j < 3; j++)
             for(int i = 0; i < 3; i++) {
-                triangle_vertices[triangle_count][j][i] = v[j][i];
+                tv[tc][j][i] = v[j][i];
             }
 
-        triangle_count++;
+        tc++;
     }
 
     // Get the bounding box of the model
@@ -158,11 +158,11 @@ int main()
     for(int i = 0; i < 3; i++)
         max[i] = -1000000;
 
-    for(int k = 0; k < triangle_count; k++)
+    for(int k = 0; k < tc; k++)
         for(int j = 0; j < 3; j++)
             for(int i = 0; i < 3; i++) {
-                min[i] = std::min(min[i], triangle_vertices[k][j][i]);
-                max[i] = std::max(max[i], triangle_vertices[k][j][i]);
+                min[i] = std::min(min[i], tv[k][j][i]);
+                max[i] = std::max(max[i], tv[k][j][i]);
             }
 
     // Get the center of the model
@@ -184,23 +184,23 @@ int main()
 
     // Rather than raytrace from the camera, move the model to simplify
     // the math
-    for(int k = 0; k < triangle_count; k++) {
+    for(int k = 0; k < tc; k++) {
         for(int j = 0; j < 3; j++)
             for(int i = 0; i < 3; i++)
-                triangle_vertices[k][j][i] -= camera[i];
+                tv[k][j][i] -= camera[i];
     }
 
-    for(int k = 0; k < triangle_count; k++) {
+    for(int k = 0; k < tc; k++) {
         prepare_triangle(k);
     }
 
-    printf("P2 %d %d 255\n", width, height);
+    printf("P2 %d %d 255\n", W, H);
 
-    float pdx = .5 / (width / 2.0);
-    float pdy = .5 / (height / 2.0);
+    float pdx = .5 / (W / 2.0);
+    float pdy = .5 / (H / 2.0);
 
-    for(int py = 0; py < height; py++)
-        for(int px = 0; px < width; px++) {
+    for(int py = 0; py < H; py++)
+        for(int px = 0; px < W; px++) {
 
             // Make the ray
             float ray[3];
@@ -211,16 +211,16 @@ int main()
 
             // find the closest triangle
             int triangle = -1;
-            float t = infinity;
+            float t = F;
 
-            for(int k = 0; k < triangle_count; k++) {
-                if(ray[0] < triangle_proj[k][0])
+            for(int k = 0; k < tc; k++) {
+                if(ray[0] < tb[k][0])
                     continue;
-                if(ray[0] > triangle_proj[k][1])
+                if(ray[0] > tb[k][1])
                     continue;
-                if(ray[1] < triangle_proj[k][2])
+                if(ray[1] < tb[k][2])
                     continue;
-                if(ray[1] > triangle_proj[k][3])
+                if(ray[1] > tb[k][3])
                     continue;
                 float t2 = intersect_triangle(k, ray);
                 if(t2 < t) {
@@ -238,14 +238,14 @@ int main()
 
             } else {
 
-                float facing = ray[0] * triangle_planes[triangle][0] + ray[1] * triangle_planes[triangle][1] + ray[2] * triangle_planes[triangle][2];
+                float facing = ray[0] * tp[triangle][0] + ray[1] * tp[triangle][1] + ray[2] * tp[triangle][2];
 
-                float lighting = light[0] * triangle_planes[triangle][0] + light[1] * triangle_planes[triangle][1] + light[2] * triangle_planes[triangle][2];
+                float Ling = L[0] * tp[triangle][0] + L[1] * tp[triangle][1] + L[2] * tp[triangle][2];
 
                 if(facing > 0)
-                    lighting = -lighting;
+                    Ling = -Ling;
 
-                color = std::max(0.1f, lighting);
+                color = std::max(0.1f, Ling);
             }
 
             printf("%d ", (int)(color * 255));

@@ -91,7 +91,7 @@ float intersect(int k, float r[3])
         r[1] * tp[k][1] + 
         r[2] * tp[k][2];
 
-    // if coin, fail
+    // if coincident, fail
     if(factor == 0.0)
        return F;
 
@@ -138,52 +138,9 @@ int main()
                 tv[tc][j][i] = v[j][i];
             }
 
+        prepare(tc);
+
         tc++;
-    }
-
-    // Get the bounding box of the model
-    float min[3];
-    for(int i = 0; i < 3; i++)
-        min[i] = 1000000;
-
-    float max[3];
-    for(int i = 0; i < 3; i++)
-        max[i] = -1000000;
-
-    for(int k = 0; k < tc; k++)
-        for(int j = 0; j < 3; j++)
-            for(int i = 0; i < 3; i++) {
-                min[i] = std::min(min[i], tv[k][j][i]);
-                max[i] = std::max(max[i], tv[k][j][i]);
-            }
-
-    // Get the center of the model
-    float center[3];
-    for(int i = 0; i < 3; i++)
-        center[i] = (min[i] + max[i]) / 2;
-
-    // Get the maximum dimension of the model
-    float max_dimension = 0;
-    for(int i = 0; i < 3; i++)
-        max_dimension = std::max(max_dimension, (max[i] - min[i]));
-
-    // The camera looks down -Z towards the model
-    // FOV is always 45 degrees, camera is moved so that the model fits.
-    float camera[3];
-    camera[0] = center[0];
-    camera[1] = center[1];
-    camera[2] = max[2] + max_dimension / .9;
-
-    // Rather than raytrace from the camera, move the model to simplify
-    // the math
-    for(int k = 0; k < tc; k++) {
-        for(int j = 0; j < 3; j++)
-            for(int i = 0; i < 3; i++)
-                tv[k][j][i] -= camera[i];
-    }
-
-    for(int k = 0; k < tc; k++) {
-        prepare(k);
     }
 
     printf("P2 %d %d 255\n", W, H);
